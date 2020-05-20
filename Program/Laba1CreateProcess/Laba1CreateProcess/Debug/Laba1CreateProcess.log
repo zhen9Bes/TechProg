@@ -1,0 +1,3 @@
+﻿  main.cpp
+C:\Users\Jacky\Desktop\Evgeniy Kochetkov\4semak\OperSys\Laba1CreateProcess\Laba1CreateProcess\main.cpp(48,24): error C2086: PROCESS_INFORMATION pinfo: переопределение
+C:\Users\Jacky\Desktop\Evgeniy Kochetkov\4semak\OperSys\Laba1CreateProcess\Laba1CreateProcess\main.cpp(35): message : см. объявление "pinfo"
