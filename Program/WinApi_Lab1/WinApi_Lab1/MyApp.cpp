@@ -5,12 +5,12 @@ MyApp::MyApp()
 	using std::wstring;
 	using std::string;
 
-	try 
-	{		
+	try
+	{
 		this->init_native_window_obj();
 		this->create_native_controls();
 	}
-	catch (const std::exception& ex)
+	catch (const std::exception & ex)
 	{
 		string expt_data = ex.what();
 		MessageBox(nullptr, wstring(begin(expt_data), end(expt_data)).c_str(), L"Ошибка!", MB_ICONERROR | MB_OK);
@@ -20,7 +20,7 @@ MyApp::MyApp()
 
 MyApp::~MyApp()
 {
-	
+
 }
 
 int MyApp::Run()
@@ -80,7 +80,7 @@ void MyApp::init_native_window_obj()
 		(GetSystemMetrics(SM_CYSCREEN) - _windowRC.bottom) / 2,
 		_windowRC.right, _windowRC.bottom, nullptr, nullptr, nullptr, this //<- вот эта шляпа
 	); !this->m_hWnd)
-		throw runtime_error("Error! Can't create main window!"s); 
+		throw runtime_error("Error! Can't create main window!"s);
 }
 
 LRESULT MyApp::application_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
@@ -101,12 +101,12 @@ LRESULT MyApp::application_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPar
 		//в классе самого окна если 2 параметра отвечающие за пользовательскую информаци
 		//по умолчанию они равны нулю cbClsExtra = 0;cbWndExtra = 0;
 		//так вот флаг GWLP_USERDATA в этой функции позволяет взять указатель на класс нашего окна и запихать его туды
-		if(!SetWindowLongPtr(hWnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(pApp)))
+		if (!SetWindowLongPtr(hWnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(pApp)))
 		{
 			//то есть вот тут. если вдруг раньше где то были ошибки, то код последний ошибки был априории не ноль
 			//а когда мы его установили в ноль, то теперь спокойно можем проверить все ли корректно записалось
 			//если нет то кидаем ошибку
-			if(GetLastError() != 0)
+			if (GetLastError() != 0)
 				return false;
 		}
 	}
@@ -131,88 +131,268 @@ LRESULT MyApp::application_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPar
 
 LRESULT MyApp::window_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
+	this->m_Proc_Info.reserve(10);
+	// ReSharper disable once CppDefaultCaseNotHandledInSwitchStatement
 	switch (uMsg)
 	{
+		using std::runtime_error;
+		using std::string;
+		using namespace std::string_literals;
+
 		//тут будем обрабатывать все события элементов управления
-		case WM_COMMAND:
+	case WM_COMMAND:
+	{
+		switch (static_cast<MyApp::CTL_ID>(LOWORD(wParam)))
 		{
-			switch (static_cast<MyApp::CTL_ID>(LOWORD(wParam)))
+		case MyApp::CTL_ID::OPENWINEXEC_ID:
+		{
+			try
 			{
-			case MyApp::CTL_ID::OPENWINEXEC_ID:
-			{
-				////Здесь будем запускать открытие окна.
+				this->open_file_dialog(hWnd);
+				std::wstring filePath;
+				filePath.resize(MAX_PATH);
+				GetWindowText(this->m_hWndEdit, &filePath[0], MAX_PATH);
+				filePath.erase(remove(begin(filePath), end(filePath), 0), end(filePath));
 
-				//OPENFILENAME ofn{};	// структура стандартного диалогового окна
-				//char szFile[260] = { 0 };	// буфер для имени файла (должен быть не менее 256 символов)
-				//HANDLE hf;         	// дескриптор файла
+				if (!filePath.empty())
+				{
+					//Вообще у меня не хочет работать. Я понимаю, что она нужна для совместимости со старым ОС
+					//16 битная. Работает только с АНСИ строками
+					//Не смотря на то что я пытаюсь преобразовывать и все вроде верно, процесс не запускается =(
+					LPCSTR lpcStr = reinterpret_cast<LPCSTR>(filePath.c_str());
+					WinExec("\"lpcStr\" -L -S", SW_RESTORE);
 
-				//// Инициализация OPENFILENAME
-				//ZeroMemory(&ofn, sizeof(OPENFILENAME));				//Эта функция обнуляет структуру в памяти(в отличие от memset заполняет ее нулями)
-				//ofn.lStructSize = sizeof(OPENFILENAME);				//Указываем размер структуры
-				//ofn.hwndOwner = hWnd;								//передаю окно владельца
-				//ofn.lpstrFile = reinterpret_cast<LPWSTR>(szFile);	//указываю куда буду сохранять имя файла
-				//ofn.nMaxFile = sizeof(szFile);						//указываю размер для имени файла
-				//ofn.lpstrFilter = L"All\0*.*\0Word\0*.doc;*.docx\0Text\0*.TXT\0\0"; //фильты для поиска. Идут в парах через \0. 1(до \0) - это название фильтра, 2(после \0) - это фильтры разрешения фалов, которые указываются в звездочках через точку с запятой
-				//ofn.nFilterIndex = 2;								//Указываем какой именно индекс фильтра будет выбран изначально. Нумерация идет с 1
-				//ofn.lpstrFileTitle = NULL;							//The file name and extension (without path information) of the selected file. This member can be NULL.
-				//ofn.nMaxFileTitle = 0;								//The size, in characters, of the buffer pointed to by lpstrFileTitle. This member is ignored if lpstrFileTitle is NULL.
-				//ofn.lpstrInitialDir = NULL;							//The initial directory. The algorithm for selecting the initial directory varies on different platforms.
-				//ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;	//Устанавливаю флаги, что путь указываемый пользователем должен существовать, а так же сам файл, иначе выскочить предупреждение
-
-				//// Покажем диалоговое окно Открыть (Open) и если все выполнилось успешно, то открываем выбраный файл. 
-				////Так как используется ShellExecute то файл можно открыть любой, если система найдет ассоциацию с этим файлом
-				//if (GetOpenFileName(&ofn) == TRUE)
-				//	ShellExecute(hWnd, NULL, reinterpret_cast<LPWSTR>(szFile), NULL, NULL, SW_RESTORE);
-
-
-				///*hf = CreateFile(ofn.lpstrFile, GENERIC_READ,
-				//	0, (LPSECURITY_ATTRIBUTES)NULL,
-				//	OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL,
-				//	(HANDLE)NULL);*/
-
-				//	//MessageBox(hWnd, L"Do", L"Ne", MB_ICONINFORMATION);
-
+					int  i = GetLastError();
+					if (i > 0)
+					{
+						throw runtime_error("Ошибка открытия файла! ShellExecute()"s);
+					}
+				}
 			}
-			return 0;
-			case MyApp::CTL_ID::OPENSHELLFILE_ID:
+			catch (...)
 			{
-
-			}
-			return 0;
-			case MyApp::CTL_ID::OPENCREATEPROC_ID:
-			{
-
-			}
-			return 0;
-			case MyApp::CTL_ID::CLOSEPROC_ID:
-			{
-
-			}
-			return 0;
-			case MyApp::CTL_ID::FILEEDIT_ID:
-			{
-
-			}
-			return 0;
-			case MyApp::CTL_ID::EXITPROG_ID:
-			{
-
-			}
-			return 0;
+				MessageBox(nullptr, L"Ошибка открытия файла", L"Ошибка", MB_ICONERROR | MB_OK);
 			}
 		}
 		return 0;
-		//событие нажатия на крестик
-		case WM_DESTROY:
+		case MyApp::CTL_ID::OPENSHELLEXEC_ID:
 		{
+			try
+			{
+				this->open_file_dialog(hWnd);
+				std::wstring filePath;
+				filePath.resize(MAX_PATH);
+				GetWindowText(this->m_hWndEdit, &filePath[0], MAX_PATH);
+				filePath.erase(remove(begin(filePath), end(filePath), 0), end(filePath));
+
+				if (!filePath.empty())
+				{
+					//Так как используется ShellExecute то файл можно открыть любой, если система найдет ассоциацию с этим файлом
+					ShellExecute(hWnd, NULL, reinterpret_cast<LPCWSTR>(filePath.c_str()), NULL, NULL, SW_RESTORE);
+					//Обработка ошибок для отладочного режима
+					int  i = GetLastError();
+					if (i > 0)
+					{
+						throw runtime_error("Ошибка открытия файла! ShellExecute()"s);
+					}
+				}
+			}
+			catch (...)
+			{
+				MessageBox(this->m_hWnd, L"Ошибка открытия файла", L"Ошибка чтения", MB_ICONWARNING | MB_OK);
+			}
+			////Здесь будем запускать открытие окна.
+		//OPENFILENAME ofn{};	// структура стандартного диалогового окна
+		//char szFile[MAX_PATH] = { 0 };	// буфер для имени файла (должен быть не менее 256 символов)
+		//HANDLE hf;         	// дескриптор файла
+		//// Инициализация OPENFILENAME
+		//ZeroMemory(&ofn, sizeof(OPENFILENAME));				//Эта функция обнуляет структуру в памяти(в отличие от memset заполняет ее нулями)
+		//ofn.lStructSize = sizeof(OPENFILENAME);				//Указываем размер структуры
+		//ofn.hwndOwner = hWnd;								//передаю окно владельца
+		//ofn.lpstrFile = reinterpret_cast<LPWSTR>(szFile);	//указываю куда буду сохранять имя файла
+		//ofn.nMaxFile = sizeof(szFile);						//указываю размер для имени файла
+		//ofn.lpstrFilter = L"All\0*.*\0Word\0*.doc;*.docx\0Text\0*.TXT\0\0"; //фильты для поиска. Идут в парах через \0. 1(до \0) - это название фильтра, 2(после \0) - это фильтры разрешения фалов, которые указываются в звездочках через точку с запятой
+		//ofn.nFilterIndex = 2;								//Указываем какой именно индекс фильтра будет выбран изначально. Нумерация идет с 1
+		//ofn.lpstrFileTitle = NULL;							//The file name and extension (without path information) of the selected file. This member can be NULL.
+		//ofn.nMaxFileTitle = 0;								//The size, in characters, of the buffer pointed to by lpstrFileTitle. This member is ignored if lpstrFileTitle is NULL.
+		//ofn.lpstrInitialDir = NULL;							//The initial directory. The algorithm for selecting the initial directory varies on different platforms.
+		//ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;	//Устанавливаю флаги, что путь указываемый пользователем должен существовать, а так же сам файл, иначе выскочить предупреждение
+		//// Покажем диалоговое окно Открыть (Open) и если все выполнилось успешно, то открываем выбраный файл. 
+		////Так как используется ShellExecute то файл можно открыть любой, если система найдет ассоциацию с этим файлом
+		//if (GetOpenFileName(&ofn) == TRUE)
+		//{
+		//	LPWSTR lpwstr = reinterpret_cast<LPWSTR>(szFile); //просто проверял чо лежит внутри LPWSTR
+		//	SetWindowText(this->m_hWndEdit, lpwstr);
+		//	ShellExecute(hWnd, NULL, ofn.lpstrFile, NULL, NULL, SW_RESTORE);
+		//}
+		//int  i = GetLastError();
+		//if (i > 0)  MessageBox(nullptr, L"Ошибка открытия файла", L"Ошибка", MB_ICONERROR | MB_OK);
+		//MessageBox(hWnd, L"Do", L"Ne", MB_ICONINFORMATION);
+		}
+		return 0;
+		case MyApp::CTL_ID::OPENCREATEPROC_ID:
+		{
+			
+			this->open_file_dialog(hWnd);
+			std::wstring filePath;
+			filePath.resize(MAX_PATH);
+			GetWindowText(this->m_hWndEdit, &filePath[0], MAX_PATH);
+			filePath.erase(remove(begin(filePath), end(filePath), 0), end(filePath));
+
+			this->init_new_proc(const_cast<LPWSTR>(filePath.c_str()));
+		}
+		return 0;
+		case MyApp::CTL_ID::CLOSEPROC_ID:
+		{
+			PROCESS_INFORMATION pi;
+			DWORD dwExitCode;
+
+			pi = this->m_Proc_Info.back();
+
+			if (GetExitCodeProcess(pi.hProcess, &dwExitCode))
+			{
+				TerminateProcess(pi.hProcess, EXIT_SUCCESS);
+				//SendMessage(reinterpret_cast<HWND>(pi.hProcess), WM_CLOSE, 0, 0);
+				MessageBox(hWnd, L"Последний запуженный процесс завершен", L"Внимание!", MB_OK | MB_ICONINFORMATION);
+				CloseHandle(pi.hProcess);
+				if(!this->m_Proc_Info.empty())
+					this->m_Proc_Info.pop_back();
+			}
+			else
+			{
+
+			}
+		}
+		return 0;
+		case MyApp::CTL_ID::EXITPROG_ID:
+		{
+			PROCESS_INFORMATION pi;
+			DWORD dwExitCode;
+
+			while (!this->m_Proc_Info.empty())
+			{
+				pi = this->m_Proc_Info.back();
+
+				if (GetExitCodeProcess(pi.hProcess, &dwExitCode))
+				{
+					TerminateProcess(pi.hProcess, EXIT_SUCCESS);
+					//SendMessage(reinterpret_cast<HWND>(pi.hProcess), WM_CLOSE, 0, 0);
+					CloseHandle(pi.hProcess);
+					if (!this->m_Proc_Info.empty())
+						this->m_Proc_Info.pop_back();
+				}
+			}
+			MessageBox(hWnd, L"Все дочерние процессы завершены", L"Внимание!", MB_OK | MB_ICONINFORMATION);
 			PostQuitMessage(EXIT_SUCCESS);
 		}
 		return 0;
+		}
 	}
-	return DefWindowProc(hWnd,uMsg,wParam,lParam);
+	return 0;
+
+	//событие нажатия на крестик
+	case WM_DESTROY:
+	{
+		PROCESS_INFORMATION pi;
+		DWORD dwExitCode;
+
+		while (!this->m_Proc_Info.empty())
+		{
+			pi = this->m_Proc_Info.back();
+
+			if (GetExitCodeProcess(pi.hProcess, &dwExitCode))
+			{
+				TerminateProcess(pi.hProcess, EXIT_SUCCESS);
+				//SendMessage(reinterpret_cast<HWND>(pi.hProcess), WM_CLOSE, 0, 0);
+				CloseHandle(pi.hProcess);
+				if (!this->m_Proc_Info.empty())
+					this->m_Proc_Info.pop_back();
+			}
+		}
+		MessageBox(hWnd, L"Все дочерние процессы завершены", L"Внимание!", MB_OK | MB_ICONINFORMATION);
+		PostQuitMessage(EXIT_SUCCESS);
+	}
+	return 0;
+	}
+	return DefWindowProc(hWnd, uMsg, wParam, lParam);
 }
 
-void MyApp::create_native_controls() 
+void MyApp::init_new_proc(LPWSTR filePath)
+{
+	STARTUPINFO si;			//Элементы структуры STARTUPINFO используются Windows - функциями при создании нового процесса.
+	PROCESS_INFORMATION pi;	//
+	DWORD dwExitCode;
+	
+	ZeroMemory(&si, sizeof(si));
+	si.cb = sizeof(si);
+	ZeroMemory(&pi, sizeof(pi));
+
+	BOOL success = CreateProcess(NULL,		// No module name (use command line)
+		filePath,							// Command line
+		NULL,								// Process handle not inheritable
+		NULL,								// Thread handle not inheritable
+		FALSE,								// Set handle inheritance to FALSE
+		CREATE_SUSPENDED,									// No creation flags CREATE_SUSPENDED
+		NULL,								// Use parent's environment block
+		NULL,								// Use parent's starting directory 
+		&si,								// Pointer to "STARTUPINFO" structure
+		&pi);								// Pointer to PROCESS_INFORMATION structure
+	if (success)
+	{
+		this->m_Proc_Info.push_back(pi);
+		ResumeThread(pi.hThread);
+		CloseHandle(pi.hThread);		
+		// приостанавливаем выполнение родительского процесса, 
+		// пока не завершится дочерний процесс 
+		//WaitForSingleObject(pinfo.hProcess, INFINITE);
+		// дочерний процесс завершился; получаем код его завершения 
+		//GetExitCodeProcess(pi.hProcess, &dwExitCode);
+
+		// закрывайте описатель процесса, как только
+		// необходимость в нем отпадает! 
+		//Честно не знаю на сколько это верно
+		//Не стал закрывать хэндл процесса так как потом буду их закрывать по кнопке
+		//иначе просто не работало
+		//соответсвенно после удаление процесса буду удалять и хэндл
+		//CloseHandle(pi.hProcess);
+	}
+}
+
+LPWSTR MyApp::open_file_dialog(HWND hWnd)
+{
+	//Здесь будем запускать открытие окна.
+	OPENFILENAME ofn{};	// структура стандартного диалогового окна
+	char szFile[MAX_PATH] = { 0 };	// буфер для имени файла (должен быть не менее 256 символов)
+	//HANDLE hf;         	// дескриптор файла
+
+	// Инициализация OPENFILENAME
+	ZeroMemory(&ofn, sizeof(OPENFILENAME));				//Эта функция обнуляет структуру в памяти(в отличие от memset заполняет ее нулями)
+	ofn.lStructSize = sizeof(OPENFILENAME);				//Указываем размер структуры
+	ofn.hwndOwner = hWnd;								//передаю окно владельца
+	ofn.lpstrFile = reinterpret_cast<LPWSTR>(szFile);	//указываю куда буду сохранять имя файла
+	ofn.nMaxFile = sizeof(szFile);						//указываю размер для имени файла
+	ofn.lpstrFilter = L"All\0*.*\0Word\0*.doc;*.docx\0EXE\0*.exe\0\0"; //фильты для поиска. Идут в парах через \0. 1(до \0) - это название фильтра, 2(после \0) - это фильтры разрешения фалов, которые указываются в звездочках через точку с запятой
+	ofn.nFilterIndex = 1;								//Указываем какой именно индекс фильтра будет выбран изначально. Нумерация идет с 1
+	ofn.lpstrFileTitle = NULL;							//The file name and extension (without path information) of the selected file. This member can be NULL.
+	ofn.nMaxFileTitle = 0;								//The size, in characters, of the buffer pointed to by lpstrFileTitle. This member is ignored if lpstrFileTitle is NULL.
+	ofn.lpstrInitialDir = NULL;							//The initial directory. The algorithm for selecting the initial directory varies on different platforms.
+	ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;	//Устанавливаю флаги, что путь указываемый пользователем должен существовать, а так же сам файл, иначе выскочить предупреждение
+
+	// Покажем диалоговое окно Открыть (Open) и если все выполнилось успешно, то устанавливаем в лайнэдит полный путь файла и после возвращаем путь. 
+	if (GetOpenFileName(&ofn) == TRUE)
+	{
+		SetWindowText(this->m_hWndEdit, ofn.lpstrFile);
+		return ofn.lpstrFile;
+	}
+	else
+	{
+		int  i = GetLastError(); //на случай просмотра кода ошибки во время отладки
+		if (i > 0)  MessageBox(nullptr, L"Ошибка открытия файла", L"Ошибка", MB_ICONERROR | MB_OK);
+		return nullptr;
+	}
+}
+
+void MyApp::create_native_controls()
 {
 	using std::runtime_error;
 	using namespace std::string_literals;
@@ -227,7 +407,7 @@ void MyApp::create_native_controls()
 		L"BUTTON",
 		L"Открыть файл( WinExec() )",
 		WS_CHILD | BS_PUSHBUTTON | WS_VISIBLE,
-		20, 70, 250, 40, this->m_hWnd, reinterpret_cast<HMENU>(MyApp::CTL_ID::OPENWINEXEC_ID),nullptr, nullptr
+		20, 70, 250, 40, this->m_hWnd, reinterpret_cast<HMENU>(MyApp::CTL_ID::OPENWINEXEC_ID), nullptr, nullptr
 	); !this->m_hWndButton)
 		throw runtime_error("Can't create WinExec button!"s);
 	//отправим сообщения c флагом WM_SETFONT, которые установят шрифры для элементов управления
@@ -238,7 +418,7 @@ void MyApp::create_native_controls()
 		L"BUTTON",
 		L"Открыть файл( ShellExecute() )",
 		WS_CHILD | BS_PUSHBUTTON | WS_VISIBLE,
-		320, 70, 250, 40, this->m_hWnd, reinterpret_cast<HMENU>(MyApp::CTL_ID::OPENSHELLFILE_ID), nullptr, nullptr
+		320, 70, 250, 40, this->m_hWnd, reinterpret_cast<HMENU>(MyApp::CTL_ID::OPENSHELLEXEC_ID), nullptr, nullptr
 	); !this->m_hWndButton)
 		throw runtime_error("Can't create ShellExecute button!"s);
 	//отправим сообщения c флагом WM_SETFONT, которые установят шрифры для элементов управления
@@ -287,5 +467,5 @@ void MyApp::create_native_controls()
 		throw runtime_error("Can't create edit!"s);
 	//отправим сообщения c флагом WM_SETFONT, которые установят шрифры для элементов управления
 	SendMessage(this->m_hWndEdit, WM_SETFONT, reinterpret_cast<WPARAM>(hFont), TRUE);
-	
+
 }

@@ -9,6 +9,7 @@ processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 #include <string>
 #include <algorithm>
 #include <execution>
+#include <vector>
 
 class MyApp 
 {
@@ -16,7 +17,7 @@ class MyApp
 	enum class CTL_ID
 	{
 		OPENWINEXEC_ID,
-		OPENSHELLFILE_ID,
+		OPENSHELLEXEC_ID,
 		OPENCREATEPROC_ID,
 		CLOSEPROC_ID,
 		EXITPROG_ID,
@@ -39,12 +40,17 @@ private:
 	LRESULT CALLBACK window_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 	//метод который будет создавать элементы управления
 	void create_native_controls();
-
+	LPWSTR open_file_dialog(HWND hWnd);
+	void init_new_proc(LPWSTR filePath);
 private:
 	//поля для хранения названия окна и класса
 	const std::wstring m_szAppName{ L"Лабораторная работа №1" }, m_szClassName{ L"WinApi_lab1" };
 	//хендлы для элементов управления(все элементы упр в винапи явл окнами)
 	HWND m_hWnd{}, m_hWndButton{}, m_hWndEdit{};
+	//Буду сохранять информацию о всех дочерних процессах
+	//Но есть одно но! Если я закрою один из них, затем начну проверять есть активен ли этот процесс, то он может быть активным
+	//так как система может дать другому процессу тот же PID
+	std::vector<PROCESS_INFORMATION> m_Proc_Info;
 	//константы для размеров окна
 	const int m_nAppWidth{600}, m_nAppHeigth{350};
 
