@@ -1,3 +1,4 @@
 ﻿  MyApp.cpp
-C:\Users\Jacky\Desktop\Evgeniy Kochetkov\4semak\OperSys\Program\WinApi_Lab1\WinApi_Lab1\MyApp.cpp(324,8): warning C4101: dwExitCode: неиспользованная локальная переменная
+C:\Users\Jacky\Desktop\Evgeniy Kochetkov\4semak\OperSys\Program\WinApi_Lab1\WinApi_Lab1\MyApp.cpp(349,8): warning C4101: dwExitCode: неиспользованная локальная переменная
+C:\Users\Jacky\Desktop\Evgeniy Kochetkov\4semak\OperSys\Program\WinApi_Lab1\WinApi_Lab1\MyApp.cpp(267): warning C4700: использована неинициализированная локальная переменная "pi"
   WinApi_Lab1.vcxproj -> C:\Users\Jacky\Desktop\Evgeniy Kochetkov\4semak\OperSys\Program\WinApi_Lab1\Debug\WinApi_Lab1.exe

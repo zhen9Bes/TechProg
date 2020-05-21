@@ -138,7 +138,6 @@ LRESULT MyApp::window_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		using std::runtime_error;
 		using std::string;
 		using namespace std::string_literals;
-
 		//тут будем обрабатывать все события элементов управления
 	case WM_COMMAND:
 	{
@@ -148,7 +147,7 @@ LRESULT MyApp::window_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		{
 			try
 			{
-				this->open_file_dialog(hWnd);
+				//this->open_file_dialog(hWnd);
 				std::wstring filePath;
 				filePath.resize(MAX_PATH);
 				GetWindowText(this->m_hWndEdit, &filePath[0], MAX_PATH);
@@ -160,9 +159,26 @@ LRESULT MyApp::window_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 					//16 битная. Работает только с АНСИ строками
 					//Не смотря на то что я пытаюсь преобразовывать и все вроде верно, процесс не запускается =(
 					LPCSTR lpcStr = reinterpret_cast<LPCSTR>(filePath.c_str());
-					WinExec("\"lpcStr\" -L -S", SW_RESTORE);
+					LPCWSTR lpcwStr = reinterpret_cast<LPCWSTR>(filePath.c_str());
+					DWORD iSizeStr = wcslen(lpcwStr) + 1;
+					LPSTR lpStrTmp = (PCHAR)calloc(iSizeStr, sizeof(CHAR));
 
-					int  i = GetLastError();
+					DWORD iResult = WideCharToMultiByte(
+						CP_ACP,
+						WC_NO_BEST_FIT_CHARS,
+						lpcwStr,
+						INFINITE,
+						lpStrTmp,
+						iSizeStr,
+						NULL,
+						NULL
+					);
+
+					SetLastError(0);
+
+					WinExec("word.doc", SW_RESTORE); //const_cast<LPCSTR>(lpStrTmp)
+
+					int  i = GetLastError(); // выдает либо Путь не найде, либо ERROR_BAD_EXE_FORMAT
 					if (i > 0)
 					{
 						throw runtime_error("Ошибка открытия файла! ShellExecute()"s);
@@ -245,23 +261,26 @@ LRESULT MyApp::window_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		case MyApp::CTL_ID::CLOSEPROC_ID:
 		{
 			PROCESS_INFORMATION pi;
-			DWORD dwExitCode;
-
-			pi = this->m_Proc_Info.back();
-
-			if (GetExitCodeProcess(pi.hProcess, &dwExitCode))
+			DWORD dwExitCode;			
+			if (!this->m_Proc_Info.empty()) 
 			{
-				TerminateProcess(pi.hProcess, EXIT_SUCCESS);
-				//SendMessage(reinterpret_cast<HWND>(pi.hProcess), WM_CLOSE, 0, 0);
-				MessageBox(hWnd, L"Последний запуженный процесс завершен", L"Внимание!", MB_OK | MB_ICONINFORMATION);
-				CloseHandle(pi.hProcess);
-				if(!this->m_Proc_Info.empty())
-					this->m_Proc_Info.pop_back();
+				if (GetExitCodeProcess(pi.hProcess, &dwExitCode))
+				{
+					pi = this->m_Proc_Info.back();
+
+					TerminateProcess(pi.hProcess, EXIT_SUCCESS);
+					//SendMessage(reinterpret_cast<HWND>(pi.hProcess), WM_CLOSE, 0, 0);
+					MessageBox(hWnd, L"Последний запуженный процесс завершен", L"Внимание!", MB_OK | MB_ICONINFORMATION);
+					CloseHandle(pi.hProcess);
+					if (!this->m_Proc_Info.empty())
+						this->m_Proc_Info.pop_back();
+				}
 			}
 			else
 			{
-
+				MessageBox(hWnd, L"Дочерних процессов не существует! \nПрежде чем закрыть, нужно что-то создать", L"Внимание!", MB_OK | MB_ICONINFORMATION);
 			}
+			
 		}
 		return 0;
 		case MyApp::CTL_ID::EXITPROG_ID:
@@ -269,6 +288,38 @@ LRESULT MyApp::window_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			PROCESS_INFORMATION pi;
 			DWORD dwExitCode;
 
+			if (!this->m_Proc_Info.empty())
+			{
+				while (!this->m_Proc_Info.empty())
+				{
+					pi = this->m_Proc_Info.back();
+
+					if (GetExitCodeProcess(pi.hProcess, &dwExitCode))
+					{
+						TerminateProcess(pi.hProcess, EXIT_SUCCESS);
+						//SendMessage(reinterpret_cast<HWND>(pi.hProcess), WM_CLOSE, 0, 0);
+						CloseHandle(pi.hProcess);
+						if (!this->m_Proc_Info.empty())
+							this->m_Proc_Info.pop_back();
+					}
+				}
+				MessageBox(hWnd, L"Все дочерние процессы завершены", L"Внимание!", MB_OK | MB_ICONINFORMATION);
+			}
+			PostQuitMessage(EXIT_SUCCESS);
+		}
+		return 0;
+		}
+	}
+	return 0;
+
+	//событие нажатия на крестик
+	case WM_DESTROY:
+	{
+		PROCESS_INFORMATION pi;
+		DWORD dwExitCode;
+
+		if (!this->m_Proc_Info.empty()) 
+		{
 			while (!this->m_Proc_Info.empty())
 			{
 				pi = this->m_Proc_Info.back();
@@ -283,33 +334,7 @@ LRESULT MyApp::window_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				}
 			}
 			MessageBox(hWnd, L"Все дочерние процессы завершены", L"Внимание!", MB_OK | MB_ICONINFORMATION);
-			PostQuitMessage(EXIT_SUCCESS);
-		}
-		return 0;
-		}
-	}
-	return 0;
-
-	//событие нажатия на крестик
-	case WM_DESTROY:
-	{
-		PROCESS_INFORMATION pi;
-		DWORD dwExitCode;
-
-		while (!this->m_Proc_Info.empty())
-		{
-			pi = this->m_Proc_Info.back();
-
-			if (GetExitCodeProcess(pi.hProcess, &dwExitCode))
-			{
-				TerminateProcess(pi.hProcess, EXIT_SUCCESS);
-				//SendMessage(reinterpret_cast<HWND>(pi.hProcess), WM_CLOSE, 0, 0);
-				CloseHandle(pi.hProcess);
-				if (!this->m_Proc_Info.empty())
-					this->m_Proc_Info.pop_back();
-			}
-		}
-		MessageBox(hWnd, L"Все дочерние процессы завершены", L"Внимание!", MB_OK | MB_ICONINFORMATION);
+		}		
 		PostQuitMessage(EXIT_SUCCESS);
 	}
 	return 0;
