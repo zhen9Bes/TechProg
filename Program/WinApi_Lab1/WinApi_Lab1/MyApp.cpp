@@ -147,7 +147,7 @@ LRESULT MyApp::window_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		{
 			try
 			{
-				//this->open_file_dialog(hWnd);
+				this->open_file_dialog(hWnd);
 				std::wstring filePath;
 				filePath.resize(MAX_PATH);
 				GetWindowText(this->m_hWndEdit, &filePath[0], MAX_PATH);
@@ -174,11 +174,11 @@ LRESULT MyApp::window_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 						NULL
 					);
 
-					SetLastError(0);
+					SetLastError(0); //проверял правильный код ошибки после фукции
+					//Видимо я не все понял... ЕХЕ фалы она запускает, правда ошибку все равно какую то ловит
+					WinExec(lpStrTmp, SW_RESTORE); //const_cast<LPCSTR>(lpStrTmp)
 
-					WinExec("word.doc", SW_RESTORE); //const_cast<LPCSTR>(lpStrTmp)
-
-					int  i = GetLastError(); // выдает либо Путь не найде, либо ERROR_BAD_EXE_FORMAT
+					int  i = GetLastError(); // выдает либо файл не найден ERROR_FILE_NOT_FOUND, либо ERROR_BAD_EXE_FORMAT
 					if (i > 0)
 					{
 						throw runtime_error("Ошибка открытия файла! ShellExecute()"s);
